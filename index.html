@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1f6f5b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="进账账本" />
+    <title>进账动力账本</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-label="本月进度">
+        <div class="hero-top">
+          <div>
+            <p class="eyebrow">本月进账</p>
+            <h1 id="monthIncome">¥0</h1>
+          </div>
+          <button class="icon-button" id="settingsToggle" type="button" aria-label="设置">⚙</button>
+        </div>
+
+        <div class="stats-grid">
+          <div>
+            <span>月目标</span>
+            <strong id="goalText">¥10,000</strong>
+          </div>
+          <div>
+            <span>还差</span>
+            <strong id="remainingText">¥10,000</strong>
+          </div>
+          <div>
+            <span>完成</span>
+            <strong id="percentText">0%</strong>
+          </div>
+          <div>
+            <span>成交</span>
+            <strong id="salesText">0 单</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="goal-panel" aria-label="目标水位">
+        <div class="goal-orb" aria-hidden="true">
+          <div class="goal-fill" id="water"></div>
+          <div class="goal-shine"></div>
+          <div class="goal-percent" id="goalOrbPercent">0%</div>
+        </div>
+        <div class="bank-copy">
+          <strong id="bankTitle">开始蓄满这个月</strong>
+          <span id="bankSubtitle">每成交一单，水位就涨一点。</span>
+        </div>
+      </section>
+
+      <section class="quick-panel primary-action-panel" aria-label="快速记录">
+        <button class="quick-add" id="quickAdd" type="button">
+          <span>+1 单</span>
+          <strong>一键记入 ¥199</strong>
+        </button>
+        <div class="quick-meta">
+          <span>默认单价 ¥199</span>
+          <span>今天成交后马上点</span>
+        </div>
+      </section>
+
+      <section class="quick-panel advanced-panel" aria-label="高级记录">
+        <button class="section-heading chart-toggle" id="advancedToggle" type="button" aria-expanded="false" aria-controls="entryForm">
+          <h2>多单 / 例外金额 / 备注</h2>
+          <span id="advancedToggleText">展开</span>
+        </button>
+        <form class="entry-form" id="entryForm">
+          <div class="row">
+            <label>
+              日期
+              <input id="entryDate" name="date" type="date" required />
+            </label>
+            <label>
+              单数
+              <input id="entryCount" name="count" type="number" inputmode="decimal" min="0.01" step="0.01" value="1" />
+            </label>
+          </div>
+
+          <label class="toggle-line">
+            <input id="customToggle" type="checkbox" />
+            <span>这笔是例外金额</span>
+          </label>
+
+          <label id="customAmountWrap" class="hidden">
+            例外金额
+            <input id="customAmount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="例如 299" />
+          </label>
+
+          <label>
+            备注
+            <input id="entryNote" type="text" maxlength="40" placeholder="客户、渠道、特殊情况" />
+          </label>
+
+          <div class="form-preview" id="formPreview">本次将记入 ¥199</div>
+          <button class="secondary-action" type="submit">记录这一笔</button>
+          <p class="message" id="message" role="status"></p>
+        </form>
+      </section>
+
+      <section class="settings-panel hidden" id="settingsPanel" aria-label="设置">
+        <h2>设置</h2>
+        <div class="row">
+          <label>
+            默认单价
+            <input id="unitPriceInput" type="number" inputmode="decimal" min="0.01" step="0.01" />
+          </label>
+          <label>
+            月目标
+            <input id="goalInput" type="number" inputmode="decimal" min="1" step="1" />
+          </label>
+        </div>
+        <button class="secondary-action" id="saveSettings" type="button">保存设置</button>
+      </section>
+
+      <section class="feature-carousel" aria-label="更多功能">
+        <div class="carousel-title">
+          <h2>更多</h2>
+          <span>向右滑看统计和记录</span>
+        </div>
+
+        <div class="carousel-track">
+          <section class="chart-panel carousel-card" aria-label="收入图表">
+            <div class="section-heading">
+              <h2>本月每天</h2>
+              <span>圆越满，进账越多</span>
+            </div>
+            <div class="weekday-row" aria-hidden="true">
+              <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+            </div>
+            <div id="dailyChart" class="dot-chart daily-chart"></div>
+          </section>
+
+          <section class="chart-panel carousel-card" aria-label="年度收入图表">
+            <button class="section-heading chart-toggle" id="yearChartToggle" type="button" aria-expanded="false" aria-controls="monthlyChart">
+              <h2>今年每月</h2>
+              <span id="yearChartToggleText">点击查看</span>
+            </button>
+            <div id="monthlyChart" class="dot-chart monthly-chart hidden"></div>
+          </section>
+
+          <section class="sync-panel carousel-card" aria-label="飞书同步状态">
+            <div class="section-heading">
+              <h2>飞书同步</h2>
+              <span id="syncStatusText">未配置</span>
+            </div>
+            <p id="syncHint" class="sync-hint">记录会先保存在本机。接好飞书后，待同步记录会写入多维表格。</p>
+            <div class="sync-config">
+              <label>
+                同步地址
+                <input id="syncEndpointInput" type="url" inputmode="url" placeholder="粘贴 Coze / 中转服务地址" />
+              </label>
+              <div class="sync-actions">
+                <button class="secondary-action" id="saveSyncConfig" type="button">保存地址</button>
+                <button class="ghost-action" id="syncNow" type="button">立即重试</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="records-panel carousel-card" aria-label="进账记录">
+            <div class="section-heading">
+              <h2>本月记录</h2>
+              <span id="entryCountText">0 笔</span>
+            </div>
+            <div id="recordsList" class="records-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,458 @@
+import {
+  DEFAULT_MONTH_GOAL,
+  DEFAULT_UNIT_PRICE,
+  createCustomEntry,
+  createSaleEntry,
+  createSyncRequest,
+  currentMonthKey,
+  formatCurrency,
+  getDailyChartData,
+  getDailyGroups,
+  getGoalProgress,
+  getMonthlyChartData,
+  getMonthSummary,
+  prepareFeishuRecord,
+  todayISO,
+} from './app-core.mjs';
+
+const storageKeys = {
+  entries: 'income-tracker.entries',
+  unitPrice: 'income-tracker.unitPrice',
+  goal: 'income-tracker.goal',
+  syncQueue: 'income-tracker.syncQueue',
+  syncConfig: 'income-tracker.syncConfig',
+};
+
+const state = {
+  entries: readJSON(storageKeys.entries, []),
+  unitPrice: readNumber(storageKeys.unitPrice, DEFAULT_UNIT_PRICE),
+  goal: readNumber(storageKeys.goal, DEFAULT_MONTH_GOAL),
+  syncQueue: readJSON(storageKeys.syncQueue, []),
+  syncConfig: readJSON(storageKeys.syncConfig, null),
+};
+
+const elements = {
+  monthIncome: document.querySelector('#monthIncome'),
+  goalText: document.querySelector('#goalText'),
+  remainingText: document.querySelector('#remainingText'),
+  percentText: document.querySelector('#percentText'),
+  salesText: document.querySelector('#salesText'),
+  water: document.querySelector('#water'),
+  bankTitle: document.querySelector('#bankTitle'),
+  bankSubtitle: document.querySelector('#bankSubtitle'),
+  goalOrbPercent: document.querySelector('#goalOrbPercent'),
+  quickAdd: document.querySelector('#quickAdd'),
+  advancedToggle: document.querySelector('#advancedToggle'),
+  advancedToggleText: document.querySelector('#advancedToggleText'),
+  entryForm: document.querySelector('#entryForm'),
+  entryDate: document.querySelector('#entryDate'),
+  entryCount: document.querySelector('#entryCount'),
+  customToggle: document.querySelector('#customToggle'),
+  customAmountWrap: document.querySelector('#customAmountWrap'),
+  customAmount: document.querySelector('#customAmount'),
+  entryNote: document.querySelector('#entryNote'),
+  formPreview: document.querySelector('#formPreview'),
+  message: document.querySelector('#message'),
+  settingsToggle: document.querySelector('#settingsToggle'),
+  settingsPanel: document.querySelector('#settingsPanel'),
+  unitPriceInput: document.querySelector('#unitPriceInput'),
+  goalInput: document.querySelector('#goalInput'),
+  saveSettings: document.querySelector('#saveSettings'),
+  dailyChart: document.querySelector('#dailyChart'),
+  yearChartToggle: document.querySelector('#yearChartToggle'),
+  yearChartToggleText: document.querySelector('#yearChartToggleText'),
+  monthlyChart: document.querySelector('#monthlyChart'),
+  syncStatusText: document.querySelector('#syncStatusText'),
+  syncHint: document.querySelector('#syncHint'),
+  syncEndpointInput: document.querySelector('#syncEndpointInput'),
+  saveSyncConfig: document.querySelector('#saveSyncConfig'),
+  syncNow: document.querySelector('#syncNow'),
+  recordsList: document.querySelector('#recordsList'),
+  entryCountText: document.querySelector('#entryCountText'),
+};
+
+elements.entryDate.value = todayISO();
+elements.unitPriceInput.value = state.unitPrice;
+elements.goalInput.value = state.goal;
+elements.syncEndpointInput.value = state.syncConfig?.endpoint || '';
+elements.entryForm.classList.add('hidden');
+
+elements.quickAdd.addEventListener('click', () => {
+  addEntry(
+    createSaleEntry({
+      date: todayISO(),
+      count: 1,
+      unitPrice: state.unitPrice,
+      note: '',
+    }),
+    '已记一单',
+  );
+});
+
+elements.entryForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+
+  try {
+    const entry = elements.customToggle.checked
+      ? createCustomEntry({
+          date: elements.entryDate.value,
+          amount: elements.customAmount.value,
+          note: elements.entryNote.value,
+        })
+      : createSaleEntry({
+          date: elements.entryDate.value,
+          count: elements.entryCount.value,
+          unitPrice: state.unitPrice,
+          note: elements.entryNote.value,
+        });
+
+    addEntry(entry, '已记录这一笔');
+    elements.entryNote.value = '';
+    elements.customAmount.value = '';
+    elements.entryCount.value = 1;
+    updatePreview();
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+});
+
+elements.customToggle.addEventListener('change', () => {
+  elements.customAmountWrap.classList.toggle('hidden', !elements.customToggle.checked);
+  elements.entryCount.disabled = elements.customToggle.checked;
+  updatePreview();
+});
+
+elements.entryCount.addEventListener('input', updatePreview);
+elements.customAmount.addEventListener('input', updatePreview);
+
+elements.settingsToggle.addEventListener('click', () => {
+  elements.settingsPanel.classList.toggle('hidden');
+});
+
+elements.saveSettings.addEventListener('click', () => {
+  const nextUnitPrice = Number(elements.unitPriceInput.value);
+  const nextGoal = Number(elements.goalInput.value);
+
+  if (!Number.isFinite(nextUnitPrice) || nextUnitPrice <= 0 || !Number.isFinite(nextGoal) || nextGoal <= 0) {
+    showMessage('默认单价和月目标都需要大于 0', true);
+    return;
+  }
+
+  state.unitPrice = nextUnitPrice;
+  state.goal = nextGoal;
+  localStorage.setItem(storageKeys.unitPrice, String(state.unitPrice));
+  localStorage.setItem(storageKeys.goal, String(state.goal));
+  showMessage('设置已保存');
+  updatePreview();
+  render();
+});
+
+elements.saveSyncConfig.addEventListener('click', () => {
+  const endpoint = elements.syncEndpointInput.value.trim();
+
+  if (!endpoint) {
+    state.syncConfig = null;
+    localStorage.removeItem(storageKeys.syncConfig);
+    showMessage('同步地址已清空');
+    render();
+    return;
+  }
+
+  try {
+    const url = new URL(endpoint);
+    if (!['https:', 'http:'].includes(url.protocol)) {
+      throw new Error();
+    }
+  } catch {
+    showMessage('同步地址需要是 http 或 https 开头的链接', true);
+    return;
+  }
+
+  state.syncConfig = { endpoint };
+  localStorage.setItem(storageKeys.syncConfig, JSON.stringify(state.syncConfig));
+  showMessage('同步地址已保存');
+  render();
+  syncPendingRecords();
+});
+
+elements.syncNow.addEventListener('click', () => {
+  syncPendingRecords();
+});
+
+elements.yearChartToggle.addEventListener('click', () => {
+  const isOpening = elements.monthlyChart.classList.contains('hidden');
+  elements.monthlyChart.classList.toggle('hidden', !isOpening);
+  elements.yearChartToggle.setAttribute('aria-expanded', String(isOpening));
+  elements.yearChartToggleText.textContent = isOpening ? '收起' : '点击查看';
+});
+
+elements.advancedToggle.addEventListener('click', () => {
+  const isOpening = elements.entryForm.classList.contains('hidden');
+  elements.entryForm.classList.toggle('hidden', !isOpening);
+  elements.advancedToggle.setAttribute('aria-expanded', String(isOpening));
+  elements.advancedToggleText.textContent = isOpening ? '收起' : '展开';
+});
+
+function addEntry(entry, text) {
+  state.entries = [entry, ...state.entries];
+  queueForSync(entry);
+  localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
+  showMessage(text);
+  render();
+  syncPendingRecords();
+}
+
+function render() {
+  const monthKey = currentMonthKey();
+  const yearKey = monthKey.slice(0, 4);
+  const summary = getMonthSummary(state.entries, monthKey);
+  const progress = getGoalProgress(summary.totalIncome, state.goal);
+  const groups = getDailyGroups(state.entries, monthKey);
+  const dailyChart = getDailyChartData(state.entries, monthKey, todayISO());
+  const monthlyChart = getMonthlyChartData(state.entries, yearKey);
+
+  elements.monthIncome.textContent = formatCurrency(summary.totalIncome);
+  elements.goalText.textContent = formatCurrency(state.goal);
+  elements.remainingText.textContent = formatCurrency(progress.remaining);
+  elements.percentText.textContent = `${progress.percent}%`;
+  elements.salesText.textContent = `${summary.totalSales} 单`;
+  elements.entryCountText.textContent = `${summary.entryCount} 笔`;
+  elements.water.style.height = `${progress.visualPercent}%`;
+  elements.goalOrbPercent.textContent = `${progress.percent}%`;
+
+  elements.quickAdd.querySelector('strong').textContent = `记入 ${formatCurrency(state.unitPrice)}`;
+
+  if (progress.reached) {
+    elements.bankTitle.textContent = '这个月目标已达成';
+    elements.bankSubtitle.textContent = `已经超过目标 ${formatCurrency(summary.totalIncome - state.goal)}`;
+  } else {
+    elements.bankTitle.textContent = `还差 ${formatCurrency(progress.remaining)}`;
+    elements.bankSubtitle.textContent = '每成交一单，水位就涨一点。';
+  }
+
+  renderDotChart(elements.dailyChart, dailyChart, '日', 'day');
+  renderDotChart(elements.monthlyChart, monthlyChart, '', 'month');
+  renderSyncStatus();
+  renderRecords(groups);
+}
+
+function queueForSync(entry) {
+  const queued = {
+    id: entry.id,
+    status: 'pending',
+    attempts: 0,
+    payload: prepareFeishuRecord(entry),
+    queuedAt: new Date().toISOString(),
+  };
+  state.syncQueue = [queued, ...state.syncQueue.filter((item) => item.id !== entry.id)];
+  localStorage.setItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
+}
+
+function renderSyncStatus() {
+  const pendingCount = state.syncQueue.filter((item) => item.status === 'pending').length;
+  const failedCount = state.syncQueue.filter((item) => item.status === 'failed').length;
+  const syncingCount = state.syncQueue.filter((item) => item.status === 'syncing').length;
+
+  if (!state.syncConfig) {
+    elements.syncStatusText.textContent = pendingCount > 0 ? `${pendingCount} 条待配置` : '未配置';
+    elements.syncHint.textContent =
+      pendingCount > 0
+        ? `已有 ${pendingCount} 条记录在本机排队。配置飞书后再同步。`
+        : '记录会先保存在本机。接好飞书后，待同步记录会写入多维表格。';
+    return;
+  }
+
+  if (syncingCount > 0) {
+    elements.syncStatusText.textContent = '同步中';
+    elements.syncHint.textContent = '正在把本机记录发送到你配置的同步地址。';
+    return;
+  }
+
+  if (failedCount > 0) {
+    elements.syncStatusText.textContent = `${failedCount} 条失败`;
+    elements.syncHint.textContent = '同步失败的记录仍保留在本机，可以检查地址后重试。';
+    return;
+  }
+
+  elements.syncStatusText.textContent = pendingCount > 0 ? `${pendingCount} 条待同步` : '已同步';
+  elements.syncHint.textContent = pendingCount > 0 ? '待同步记录会自动发送到同步地址。' : '已发送到同步地址。';
+}
+
+async function syncPendingRecords() {
+  if (!state.syncConfig?.endpoint) {
+    renderSyncStatus();
+    return;
+  }
+
+  const pendingItems = state.syncQueue.filter((item) => item.status === 'pending' || item.status === 'failed');
+  if (pendingItems.length === 0) {
+    renderSyncStatus();
+    return;
+  }
+
+  for (const item of pendingItems) {
+    updateQueueItem(item.id, {
+      status: 'syncing',
+      attempts: Number(item.attempts || 0) + 1,
+      lastTriedAt: new Date().toISOString(),
+    });
+    renderSyncStatus();
+
+    try {
+      const response = await fetch(state.syncConfig.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createSyncRequest(item)),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      updateQueueItem(item.id, {
+        status: 'synced',
+        syncedAt: new Date().toISOString(),
+        error: '',
+      });
+    } catch (error) {
+      updateQueueItem(item.id, {
+        status: 'failed',
+        error: error.message || '同步失败',
+      });
+    }
+  }
+
+  render();
+}
+
+function updateQueueItem(id, patch) {
+  state.syncQueue = state.syncQueue.map((item) => (item.id === id ? { ...item, ...patch } : item));
+  localStorage.setItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
+}
+
+function renderDotChart(container, items, suffix, type) {
+  container.innerHTML = items
+    .map((item) => {
+      const fill = item.totalIncome > 0 ? Math.max(22, item.fillPercent) : 0;
+      const title = `${item.label}${suffix} ${formatCurrency(item.totalIncome)} / ${item.entryCount} 笔`;
+      const palette = getDopaminePalette(item.label);
+      return `
+        <div class="dot-item ${type}-item" title="${title}" aria-label="${title}">
+          <div class="income-dot ${item.isToday ? 'is-today' : ''}" style="--fill: ${fill}%; --dot-a: ${palette[0]}; --dot-b: ${palette[1]}; --dot-c: ${palette[2]};">
+            <div class="dot-fill"></div>
+            <span>${item.label}</span>
+          </div>
+          <div class="dot-money">${type === 'month' && item.totalIncome > 0 ? formatCompactCurrency(item.totalIncome) : ''}</div>
+          <div class="dot-meta">${type === 'month' && item.entryCount > 0 ? `${item.entryCount}笔` : ''}</div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function getDopaminePalette(label) {
+  const palettes = [
+    ['#ff4da6', '#c84dff', '#25e7d5'],
+    ['#7a4dff', '#2e5bff', '#25e7d5'],
+    ['#ff5f86', '#ff4da6', '#ffe85c'],
+    ['#13c8bc', '#2e5bff', '#c36bff'],
+    ['#ff3f7f', '#d84dff', '#ffd84d'],
+  ];
+  const index = String(label)
+    .split('')
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return palettes[index % palettes.length];
+}
+
+function formatCompactCurrency(amount) {
+  const number = Number(amount) || 0;
+  if (number >= 10000) {
+    return `¥${roundForLabel(number / 10000)}万`;
+  }
+  if (number >= 1000) {
+    return `¥${roundForLabel(number / 1000)}k`;
+  }
+  return formatCurrency(number);
+}
+
+function roundForLabel(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function renderRecords(groups) {
+  if (groups.length === 0) {
+    elements.recordsList.innerHTML = '<div class="empty">这个月还没有记录。</div>';
+    return;
+  }
+
+  elements.recordsList.innerHTML = groups
+    .map(
+      (group) => `
+        <article class="day-group">
+          <div class="day-head">
+            <strong>${group.date}</strong>
+            <strong>${formatCurrency(group.totalIncome)}</strong>
+          </div>
+          ${group.entries
+            .map(
+              (entry) => `
+                <div class="entry-row">
+                  <div class="entry-main">
+                    <strong>${entry.isCustom ? '例外进账' : `${entry.count} 单`}</strong>
+                    <span>${escapeHTML(entry.note || '无备注')}</span>
+                  </div>
+                  <div class="entry-amount">${formatCurrency(entry.amount)}</div>
+                </div>
+              `,
+            )
+            .join('')}
+        </article>
+      `,
+    )
+    .join('');
+}
+
+function updatePreview() {
+  if (elements.customToggle.checked) {
+    const amount = Number(elements.customAmount.value || 0);
+    elements.formPreview.textContent = amount > 0 ? `本次将记入 ${formatCurrency(amount)}` : '填写例外金额后记录';
+    return;
+  }
+
+  const count = Number(elements.entryCount.value || 0);
+  const amount = count > 0 ? count * state.unitPrice : 0;
+  elements.formPreview.textContent = amount > 0 ? `本次将记入 ${formatCurrency(amount)}` : '填写单数后记录';
+}
+
+function showMessage(text, isError = false) {
+  elements.message.textContent = text;
+  elements.message.classList.toggle('is-error', isError);
+}
+
+function readJSON(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function readNumber(key, fallback) {
+  const value = Number(localStorage.getItem(key));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+updatePreview();
+render();
