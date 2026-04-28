@@ -29,6 +29,7 @@ const state = {
   goal: readNumber(storageKeys.goal, DEFAULT_MONTH_GOAL),
   syncQueue: readJSON(storageKeys.syncQueue, []),
   syncConfig: readJSON(storageKeys.syncConfig, null),
+  selectedDate: todayISO(),
 };
 
 const elements = {
@@ -41,9 +42,16 @@ const elements = {
   bankTitle: document.querySelector('#bankTitle'),
   bankSubtitle: document.querySelector('#bankSubtitle'),
   goalOrbPercent: document.querySelector('#goalOrbPercent'),
+  goalEditToggle: document.querySelector('#goalEditToggle'),
+  goalEditor: document.querySelector('#goalEditor'),
+  goalQuickInput: document.querySelector('#goalQuickInput'),
+  saveGoalQuick: document.querySelector('#saveGoalQuick'),
   quickAdd: document.querySelector('#quickAdd'),
+  quickDateHint: document.querySelector('#quickDateHint'),
   advancedToggle: document.querySelector('#advancedToggle'),
   advancedToggleText: document.querySelector('#advancedToggleText'),
+  selectedDateLabel: document.querySelector('#selectedDateLabel'),
+  todayDateButton: document.querySelector('#todayDateButton'),
   entryForm: document.querySelector('#entryForm'),
   entryDate: document.querySelector('#entryDate'),
   entryCount: document.querySelector('#entryCount'),
@@ -71,21 +79,22 @@ const elements = {
   entryCountText: document.querySelector('#entryCountText'),
 };
 
-elements.entryDate.value = todayISO();
+elements.entryDate.value = state.selectedDate;
 elements.unitPriceInput.value = state.unitPrice;
 elements.goalInput.value = state.goal;
+elements.goalQuickInput.value = state.goal;
 elements.syncEndpointInput.value = state.syncConfig?.endpoint || '';
 elements.entryForm.classList.add('hidden');
 
 elements.quickAdd.addEventListener('click', () => {
   addEntry(
     createSaleEntry({
-      date: todayISO(),
+      date: state.selectedDate,
       count: 1,
       unitPrice: state.unitPrice,
       note: '',
     }),
-    '已记一单',
+    state.selectedDate === todayISO() ? '已记一单' : `已补记 ${formatDateLabel(state.selectedDate)} 一单`,
   );
 });
 
@@ -122,11 +131,34 @@ elements.customToggle.addEventListener('change', () => {
   updatePreview();
 });
 
+elements.entryDate.addEventListener('change', () => {
+  setSelectedDate(elements.entryDate.value, false);
+});
+
+elements.todayDateButton.addEventListener('click', () => {
+  setSelectedDate(todayISO(), true);
+});
+
 elements.entryCount.addEventListener('input', updatePreview);
 elements.customAmount.addEventListener('input', updatePreview);
 
 elements.settingsToggle.addEventListener('click', () => {
   elements.settingsPanel.classList.toggle('hidden');
+});
+
+elements.goalEditToggle.addEventListener('click', () => {
+  const isOpening = elements.goalEditor.classList.contains('hidden');
+  elements.goalEditor.classList.toggle('hidden', !isOpening);
+  if (isOpening) {
+    elements.goalQuickInput.value = state.goal;
+    elements.goalQuickInput.focus();
+  }
+});
+
+elements.saveGoalQuick.addEventListener('click', () => {
+  if (saveGoal(elements.goalQuickInput.value)) {
+    elements.goalEditor.classList.add('hidden');
+  }
 });
 
 elements.saveSettings.addEventListener('click', () => {
@@ -139,9 +171,8 @@ elements.saveSettings.addEventListener('click', () => {
   }
 
   state.unitPrice = nextUnitPrice;
-  state.goal = nextGoal;
   localStorage.setItem(storageKeys.unitPrice, String(state.unitPrice));
-  localStorage.setItem(storageKeys.goal, String(state.goal));
+  saveGoal(nextGoal, false);
   showMessage('设置已保存');
   updatePreview();
   render();
@@ -187,10 +218,18 @@ elements.yearChartToggle.addEventListener('click', () => {
 });
 
 elements.advancedToggle.addEventListener('click', () => {
-  const isOpening = elements.entryForm.classList.contains('hidden');
-  elements.entryForm.classList.toggle('hidden', !isOpening);
-  elements.advancedToggle.setAttribute('aria-expanded', String(isOpening));
-  elements.advancedToggleText.textContent = isOpening ? '收起' : '展开';
+  setAdvancedOpen(elements.entryForm.classList.contains('hidden'));
+});
+
+elements.dailyChart.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-date]');
+  if (!button) {
+    return;
+  }
+
+  setSelectedDate(button.dataset.date, true);
+  setAdvancedOpen(true);
+  elements.entryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
 function addEntry(entry, text) {
@@ -219,8 +258,14 @@ function render() {
   elements.entryCountText.textContent = `${summary.entryCount} 笔`;
   elements.water.style.height = `${progress.visualPercent}%`;
   elements.goalOrbPercent.textContent = `${progress.percent}%`;
+  elements.selectedDateLabel.textContent = formatDateLabel(state.selectedDate);
+  elements.entryDate.value = state.selectedDate;
+  elements.goalInput.value = state.goal;
+  elements.goalQuickInput.value = state.goal;
 
   elements.quickAdd.querySelector('strong').textContent = `记入 ${formatCurrency(state.unitPrice)}`;
+  elements.quickDateHint.textContent =
+    state.selectedDate === todayISO() ? '今天成交后马上点' : `补记到 ${formatDateLabel(state.selectedDate)}`;
 
   if (progress.reached) {
     elements.bankTitle.textContent = '这个月目标已达成';
@@ -338,18 +383,58 @@ function renderDotChart(container, items, suffix, type) {
       const fill = item.totalIncome > 0 ? Math.max(22, item.fillPercent) : 0;
       const title = `${item.label}${suffix} ${formatCurrency(item.totalIncome)} / ${item.entryCount} 笔`;
       const palette = getDopaminePalette(item.label);
+      const isSelected = type === 'day' && item.key === state.selectedDate;
+      const tag = type === 'day' ? 'button' : 'div';
+      const buttonAttrs = type === 'day' ? ` type="button" data-date="${item.key}"` : '';
       return `
-        <div class="dot-item ${type}-item" title="${title}" aria-label="${title}">
-          <div class="income-dot ${item.isToday ? 'is-today' : ''}" style="--fill: ${fill}%; --dot-a: ${palette[0]}; --dot-b: ${palette[1]}; --dot-c: ${palette[2]};">
+        <${tag} class="dot-item ${type}-item ${type === 'day' ? 'dot-button' : ''}"${buttonAttrs} title="${title}" aria-label="${title}">
+          <div class="income-dot ${item.isToday ? 'is-today' : ''} ${isSelected ? 'is-selected' : ''}" style="--fill: ${fill}%; --dot-a: ${palette[0]}; --dot-b: ${palette[1]}; --dot-c: ${palette[2]};">
             <div class="dot-fill"></div>
             <span>${item.label}</span>
           </div>
           <div class="dot-money">${type === 'month' && item.totalIncome > 0 ? formatCompactCurrency(item.totalIncome) : ''}</div>
           <div class="dot-meta">${type === 'month' && item.entryCount > 0 ? `${item.entryCount}笔` : ''}</div>
-        </div>
+        </${tag}>
       `;
     })
     .join('');
+}
+
+function setSelectedDate(date, showFeedback) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) {
+    showMessage('请选择正确的日期', true);
+    return;
+  }
+
+  state.selectedDate = date;
+  elements.entryDate.value = date;
+  if (showFeedback) {
+    showMessage(`已切换到 ${formatDateLabel(date)}`);
+  }
+  updatePreview();
+  render();
+}
+
+function setAdvancedOpen(isOpening) {
+  elements.entryForm.classList.toggle('hidden', !isOpening);
+  elements.advancedToggle.setAttribute('aria-expanded', String(isOpening));
+  elements.advancedToggleText.textContent = isOpening ? '收起' : '展开';
+}
+
+function saveGoal(value, shouldRender = true) {
+  const nextGoal = Number(value);
+  if (!Number.isFinite(nextGoal) || nextGoal <= 0) {
+    showMessage('月目标需要大于 0', true);
+    return false;
+  }
+
+  state.goal = nextGoal;
+  localStorage.setItem(storageKeys.goal, String(state.goal));
+  showMessage('月目标已保存');
+  if (shouldRender) {
+    render();
+  }
+  return true;
 }
 
 function getDopaminePalette(label) {
@@ -379,6 +464,14 @@ function formatCompactCurrency(amount) {
 
 function roundForLabel(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatDateLabel(date) {
+  const [, month, day] = String(date).split('-');
+  if (!month || !day) {
+    return '今天';
+  }
+  return `${Number(month)}月${Number(day)}日`;
 }
 
 function renderRecords(groups) {

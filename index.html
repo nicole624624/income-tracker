@@ -50,6 +50,14 @@
         <div class="bank-copy">
           <strong id="bankTitle">开始蓄满这个月</strong>
           <span id="bankSubtitle">每成交一单，水位就涨一点。</span>
+          <button class="mini-action" id="goalEditToggle" type="button">设置目标</button>
+          <div class="goal-editor hidden" id="goalEditor">
+            <label>
+              月目标金额
+              <input id="goalQuickInput" type="number" inputmode="decimal" min="1" step="1" />
+            </label>
+            <button class="secondary-action" id="saveGoalQuick" type="button">保存目标</button>
+          </div>
         </div>
       </section>
 
@@ -60,7 +68,7 @@
         </button>
         <div class="quick-meta">
           <span>默认单价 ¥199</span>
-          <span>今天成交后马上点</span>
+          <span id="quickDateHint">今天成交后马上点</span>
         </div>
       </section>
 
@@ -69,6 +77,14 @@
           <h2>多单 / 例外金额 / 备注</h2>
           <span id="advancedToggleText">展开</span>
         </button>
+        <div class="date-context">
+          <div>
+            <span>正在记</span>
+            <strong id="selectedDateLabel">今天</strong>
+          </div>
+          <button class="mini-action" id="todayDateButton" type="button">回到今天</button>
+        </div>
+        <p class="date-tip">点日历圆点可切换日期，适合补以前的进账。</p>
         <form class="entry-form" id="entryForm">
           <div class="row">
             <label>
@@ -127,7 +143,7 @@
           <section class="chart-panel carousel-card" aria-label="收入图表">
             <div class="section-heading">
               <h2>本月每天</h2>
-              <span>圆越满，进账越多</span>
+              <span>点日历圆点可切换日期</span>
             </div>
             <div class="weekday-row" aria-hidden="true">
               <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>

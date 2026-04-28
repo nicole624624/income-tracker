@@ -232,6 +232,20 @@ h2 {
   color: #fffdf8;
 }
 
+.goal-editor {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 8px;
+}
+
+.goal-editor .secondary-action {
+  width: auto;
+  min-width: 104px;
+  padding: 0 16px;
+}
+
 .chart-panel,
 .quick-panel,
 .sync-panel,
@@ -371,6 +385,18 @@ h2 {
   box-shadow: 0 0 0 4px rgba(255, 253, 248, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
+.income-dot.is-selected {
+  border-color: #ffe85c;
+  box-shadow: 0 0 0 4px rgba(255, 232, 92, 0.22), 0 0 22px rgba(255, 77, 166, 0.4);
+}
+
+.dot-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
 .dot-fill {
   position: absolute;
   right: 0;
@@ -431,7 +457,8 @@ h2 {
 
 .quick-add,
 .secondary-action,
-.ghost-action {
+.ghost-action,
+.mini-action {
   width: 100%;
   border: 0;
   border-radius: 999px;
@@ -529,6 +556,47 @@ input {
   background: rgba(255, 255, 255, 0.12);
   color: #fffdf8;
   font-weight: 700;
+}
+
+.mini-action {
+  width: fit-content;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fffdf8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.date-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.date-context div {
+  display: grid;
+  gap: 3px;
+}
+
+.date-context span,
+.date-tip {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.date-context strong {
+  font-size: 18px;
+}
+
+.date-tip {
+  margin: 8px 2px 0;
 }
 
 .message {
