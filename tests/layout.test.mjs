@@ -27,3 +27,16 @@ test('goal panel exposes a quick monthly goal editor', async () => {
   assert.match(html, /id="goalQuickInput"/);
   assert.match(html, /id="saveGoalQuick"/);
 });
+
+test('quick goal editor uses a full-width input layout', async () => {
+  const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
+
+  assert.match(css, /\.goal-editor\s*{[^}]*flex:\s*0 0 100%/s);
+  assert.match(css, /\.goal-editor\s*{[^}]*grid-template-columns:\s*1fr/s);
+});
+
+test('settings panel opens near the top of the page', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.ok(html.indexOf('id="settingsPanel"') < html.indexOf('class="goal-panel"'));
+});

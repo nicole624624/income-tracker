@@ -143,7 +143,11 @@ elements.entryCount.addEventListener('input', updatePreview);
 elements.customAmount.addEventListener('input', updatePreview);
 
 elements.settingsToggle.addEventListener('click', () => {
-  elements.settingsPanel.classList.toggle('hidden');
+  const isOpening = elements.settingsPanel.classList.contains('hidden');
+  elements.settingsPanel.classList.toggle('hidden', !isOpening);
+  if (isOpening) {
+    elements.settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 });
 
 elements.goalEditToggle.addEventListener('click', () => {

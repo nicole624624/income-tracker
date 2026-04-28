@@ -41,6 +41,21 @@
         </div>
       </section>
 
+      <section class="settings-panel hidden" id="settingsPanel" aria-label="设置">
+        <h2>设置</h2>
+        <div class="row">
+          <label>
+            默认单价
+            <input id="unitPriceInput" type="number" inputmode="decimal" min="0.01" step="0.01" />
+          </label>
+          <label>
+            月目标
+            <input id="goalInput" type="number" inputmode="decimal" min="1" step="1" />
+          </label>
+        </div>
+        <button class="secondary-action" id="saveSettings" type="button">保存设置</button>
+      </section>
+
       <section class="goal-panel" aria-label="目标水位">
         <div class="goal-orb" aria-hidden="true">
           <div class="goal-fill" id="water"></div>
@@ -116,21 +131,6 @@
           <button class="secondary-action" type="submit">记录这一笔</button>
           <p class="message" id="message" role="status"></p>
         </form>
-      </section>
-
-      <section class="settings-panel hidden" id="settingsPanel" aria-label="设置">
-        <h2>设置</h2>
-        <div class="row">
-          <label>
-            默认单价
-            <input id="unitPriceInput" type="number" inputmode="decimal" min="0.01" step="0.01" />
-          </label>
-          <label>
-            月目标
-            <input id="goalInput" type="number" inputmode="decimal" min="1" step="1" />
-          </label>
-        </div>
-        <button class="secondary-action" id="saveSettings" type="button">保存设置</button>
       </section>
 
       <section class="feature-carousel" aria-label="更多功能">
