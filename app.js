@@ -13,6 +13,7 @@ import {
   getMonthSummary,
   prepareFeishuRecord,
   todayISO,
+  updateEntry,
 } from './app-core.mjs';
 
 const storageKeys = {
@@ -30,6 +31,7 @@ const state = {
   syncQueue: readJSON(storageKeys.syncQueue, []),
   syncConfig: readJSON(storageKeys.syncConfig, null),
   selectedDate: todayISO(),
+  editingId: null,
 };
 
 const incomeQuotes = [
@@ -69,6 +71,8 @@ const elements = {
   customAmount: document.querySelector('#customAmount'),
   entryNote: document.querySelector('#entryNote'),
   formPreview: document.querySelector('#formPreview'),
+  entrySubmit: document.querySelector('#entrySubmit'),
+  cancelEdit: document.querySelector('#cancelEdit'),
   message: document.querySelector('#message'),
   settingsToggle: document.querySelector('#settingsToggle'),
   settingsPanel: document.querySelector('#settingsPanel'),
@@ -110,24 +114,13 @@ elements.entryForm.addEventListener('submit', (event) => {
   event.preventDefault();
 
   try {
-    const entry = elements.customToggle.checked
-      ? createCustomEntry({
-          date: elements.entryDate.value,
-          amount: elements.customAmount.value,
-          note: elements.entryNote.value,
-        })
-      : createSaleEntry({
-          date: elements.entryDate.value,
-          count: elements.entryCount.value,
-          unitPrice: state.unitPrice,
-          note: elements.entryNote.value,
-        });
+    if (state.editingId) {
+      saveEditedEntry();
+      return;
+    }
 
-    addEntry(entry, '已记录这一笔');
-    elements.entryNote.value = '';
-    elements.customAmount.value = '';
-    elements.entryCount.value = 1;
-    updatePreview();
+    addEntry(createEntryFromForm(), '已记录这一笔');
+    resetEntryForm();
   } catch (error) {
     showMessage(error.message, true);
   }
@@ -149,6 +142,13 @@ elements.todayDateButton.addEventListener('click', () => {
 
 elements.entryCount.addEventListener('input', updatePreview);
 elements.customAmount.addEventListener('input', updatePreview);
+
+elements.cancelEdit.addEventListener('click', () => {
+  state.editingId = null;
+  resetEntryForm();
+  showMessage('已取消修改');
+  render();
+});
 
 elements.settingsToggle.addEventListener('click', () => {
   const isOpening = elements.settingsPanel.classList.contains('hidden');
@@ -229,11 +229,45 @@ elements.dailyChart.addEventListener('click', (event) => {
   elements.entryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 
+elements.recordsList.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-edit-id]');
+  if (!button) {
+    return;
+  }
+
+  startEditingEntry(button.dataset.editId);
+});
+
 function addEntry(entry, text) {
   state.entries = [entry, ...state.entries];
   queueForSync(entry);
   localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
   showMessage(text);
+  render();
+  syncPendingRecords();
+}
+
+function saveEditedEntry() {
+  const originalEntry = state.entries.find((entry) => entry.id === state.editingId);
+  if (!originalEntry) {
+    throw new Error('找不到要修改的记录');
+  }
+
+  const updatedEntry = updateEntry(originalEntry, {
+    date: elements.entryDate.value,
+    count: elements.entryCount.value,
+    unitPrice: state.unitPrice,
+    amount: elements.customAmount.value,
+    note: elements.entryNote.value,
+    isCustom: elements.customToggle.checked,
+  });
+
+  state.entries = state.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry));
+  queueForSync(updatedEntry);
+  localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
+  state.editingId = null;
+  resetEntryForm();
+  showMessage('这笔记录已修改');
   render();
   syncPendingRecords();
 }
@@ -275,6 +309,7 @@ function render() {
   renderDotChart(elements.monthlyChart, monthlyChart, '', 'month');
   renderSyncStatus();
   renderRecords(groups);
+  renderEditMode();
 }
 
 function queueForSync(entry) {
@@ -492,7 +527,10 @@ function renderRecords(groups) {
                     <strong>${entry.isCustom ? '例外进账' : `${entry.count} 单`}</strong>
                     <span>${escapeHTML(entry.note || '无备注')}</span>
                   </div>
-                  <div class="entry-amount">${formatCurrency(entry.amount)}</div>
+                  <div class="entry-side">
+                    <div class="entry-amount">${formatCurrency(entry.amount)}</div>
+                    <button class="record-action" type="button" data-edit-id="${escapeHTML(entry.id)}">修改</button>
+                  </div>
                 </div>
               `,
             )
@@ -501,6 +539,60 @@ function renderRecords(groups) {
       `,
     )
     .join('');
+}
+
+function createEntryFromForm() {
+  return elements.customToggle.checked
+    ? createCustomEntry({
+        date: elements.entryDate.value,
+        amount: elements.customAmount.value,
+        note: elements.entryNote.value,
+      })
+    : createSaleEntry({
+        date: elements.entryDate.value,
+        count: elements.entryCount.value,
+        unitPrice: state.unitPrice,
+        note: elements.entryNote.value,
+      });
+}
+
+function startEditingEntry(id) {
+  const entry = state.entries.find((item) => item.id === id);
+  if (!entry) {
+    showMessage('找不到这笔记录', true);
+    return;
+  }
+
+  state.editingId = id;
+  state.selectedDate = entry.date;
+  elements.entryDate.value = entry.date;
+  elements.entryCount.value = entry.isCustom ? 1 : entry.count;
+  elements.customToggle.checked = entry.isCustom;
+  elements.customAmountWrap.classList.toggle('hidden', !entry.isCustom);
+  elements.entryCount.disabled = entry.isCustom;
+  elements.customAmount.value = entry.isCustom ? entry.amount : '';
+  elements.entryNote.value = entry.note || '';
+  setAdvancedOpen(true);
+  updatePreview();
+  render();
+  elements.entryForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  showMessage('正在修改这笔记录');
+}
+
+function resetEntryForm() {
+  elements.entryNote.value = '';
+  elements.customAmount.value = '';
+  elements.entryCount.value = 1;
+  elements.customToggle.checked = false;
+  elements.customAmountWrap.classList.add('hidden');
+  elements.entryCount.disabled = false;
+  updatePreview();
+}
+
+function renderEditMode() {
+  const isEditing = Boolean(state.editingId);
+  elements.entrySubmit.textContent = isEditing ? '保存修改' : '记录这一笔';
+  elements.cancelEdit.classList.toggle('hidden', !isEditing);
 }
 
 function getDailyQuote(date = new Date()) {

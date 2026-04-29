@@ -124,7 +124,10 @@
           </label>
 
           <div class="form-preview" id="formPreview">本次将记入 ¥199</div>
-          <button class="secondary-action" type="submit">记录这一笔</button>
+          <div class="form-actions">
+            <button class="secondary-action" id="entrySubmit" type="submit">记录这一笔</button>
+            <button class="ghost-action hidden" id="cancelEdit" type="button">取消修改</button>
+          </div>
           <p class="message" id="message" role="status"></p>
         </form>
       </section>

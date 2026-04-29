@@ -45,6 +45,32 @@ export function createCustomEntry({ date, amount, note = '' }) {
   };
 }
 
+export function updateEntry(originalEntry, changes) {
+  if (!originalEntry?.id) {
+    throw new Error('找不到要修改的记录');
+  }
+
+  const nextEntry = changes.isCustom
+    ? createCustomEntry({
+        date: changes.date ?? originalEntry.date,
+        amount: changes.amount,
+        note: changes.note,
+      })
+    : createSaleEntry({
+        date: changes.date ?? originalEntry.date,
+        count: changes.count,
+        unitPrice: changes.unitPrice ?? originalEntry.unitPrice ?? DEFAULT_UNIT_PRICE,
+        note: changes.note,
+      });
+
+  return {
+    ...nextEntry,
+    id: originalEntry.id,
+    createdAt: originalEntry.createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function getMonthSummary(entries, monthKey) {
   const monthEntries = filterMonth(entries, monthKey);
   return monthEntries.reduce(

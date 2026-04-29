@@ -12,6 +12,7 @@ import {
   getMonthlyChartData,
   getMonthSummary,
   prepareFeishuRecord,
+  updateEntry,
 } from '../app-core.mjs';
 
 test('creates a normal sale entry from count and unit price', () => {
@@ -40,6 +41,31 @@ test('creates a custom exception entry with its exact amount', () => {
   assert.equal(entry.count, 0);
   assert.equal(entry.isCustom, true);
   assert.equal(entry.note, 'special price');
+});
+
+test('updates an existing entry while keeping its identity', () => {
+  const original = createSaleEntry({
+    date: '2026-04-09',
+    count: 1,
+    unitPrice: 199,
+    note: 'wrong amount',
+  });
+
+  const updated = updateEntry(original, {
+    date: '2026-04-09',
+    amount: 299,
+    note: 'fixed amount',
+    isCustom: true,
+  });
+
+  assert.equal(updated.id, original.id);
+  assert.equal(updated.createdAt, original.createdAt);
+  assert.equal(updated.amount, 299);
+  assert.equal(updated.count, 0);
+  assert.equal(updated.unitPrice, 0);
+  assert.equal(updated.note, 'fixed amount');
+  assert.equal(updated.isCustom, true);
+  assert.ok(updated.updatedAt);
 });
 
 test('summarizes only entries in the selected month', () => {
