@@ -18,6 +18,7 @@ test('record form exposes selected date controls for backfilling income', async 
   assert.match(html, /id="selectedDateLabel"/);
   assert.match(html, /id="todayDateButton"/);
   assert.match(html, /id="cancelEdit"/);
+  assert.match(html, /id="deleteEntry"/);
   assert.match(html, /点日历圆点可切换日期/);
 });
 
@@ -27,6 +28,8 @@ test('monthly records expose an edit action for correcting mistakes', async () =
   assert.match(app, /data-edit-id/);
   assert.match(app, /修改/);
   assert.match(app, /startEditingEntry/);
+  assert.match(app, /deleteEditingEntry/);
+  assert.match(app, /确定删除这笔记录吗/);
 });
 
 test('goal panel keeps monthly goal editing out of the homepage card', async () => {

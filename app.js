@@ -73,6 +73,7 @@ const elements = {
   formPreview: document.querySelector('#formPreview'),
   entrySubmit: document.querySelector('#entrySubmit'),
   cancelEdit: document.querySelector('#cancelEdit'),
+  deleteEntry: document.querySelector('#deleteEntry'),
   message: document.querySelector('#message'),
   settingsToggle: document.querySelector('#settingsToggle'),
   settingsPanel: document.querySelector('#settingsPanel'),
@@ -148,6 +149,10 @@ elements.cancelEdit.addEventListener('click', () => {
   resetEntryForm();
   showMessage('已取消修改');
   render();
+});
+
+elements.deleteEntry.addEventListener('click', () => {
+  deleteEditingEntry();
 });
 
 elements.settingsToggle.addEventListener('click', () => {
@@ -270,6 +275,27 @@ function saveEditedEntry() {
   showMessage('这笔记录已修改');
   render();
   syncPendingRecords();
+}
+
+function deleteEditingEntry() {
+  if (!state.editingId) {
+    return;
+  }
+
+  const shouldDelete = window.confirm('确定删除这笔记录吗？删除后本机账本里就没有这笔了。');
+  if (!shouldDelete) {
+    return;
+  }
+
+  const deletedId = state.editingId;
+  state.entries = state.entries.filter((entry) => entry.id !== deletedId);
+  state.syncQueue = state.syncQueue.filter((item) => item.id !== deletedId);
+  localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
+  localStorage.setItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
+  state.editingId = null;
+  resetEntryForm();
+  showMessage('这笔记录已删除');
+  render();
 }
 
 function render() {
@@ -593,6 +619,7 @@ function renderEditMode() {
   const isEditing = Boolean(state.editingId);
   elements.entrySubmit.textContent = isEditing ? '保存修改' : '记录这一笔';
   elements.cancelEdit.classList.toggle('hidden', !isEditing);
+  elements.deleteEntry.classList.toggle('hidden', !isEditing);
 }
 
 function getDailyQuote(date = new Date()) {

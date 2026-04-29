@@ -567,6 +567,15 @@ input {
   font-weight: 700;
 }
 
+.danger-action {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffe6ef;
+  font-weight: 800;
+}
+
 .mini-action {
   width: fit-content;
   min-height: 34px;
