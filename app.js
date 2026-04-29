@@ -32,6 +32,19 @@ const state = {
   selectedDate: todayISO(),
 };
 
+const incomeQuotes = [
+  '又一份信任，到账了。',
+  '看，你的专业，正在变现。',
+  '一个家庭，因你而变得更健康。',
+  '你的方案，又改变了一个人。',
+  '现金流，是市场投给你的赞成票。',
+  '你帮助的人，正在用钱包为你点赞。',
+  '这不仅是收入，是你自由的砖。',
+  '你的时间与专业，越来越值钱。',
+  '看，你的飞轮，又多转了一圈。',
+  '你值得。这一切都是你应得的。',
+];
+
 const elements = {
   monthIncome: document.querySelector('#monthIncome'),
   goalText: document.querySelector('#goalText'),
@@ -42,10 +55,6 @@ const elements = {
   bankTitle: document.querySelector('#bankTitle'),
   bankSubtitle: document.querySelector('#bankSubtitle'),
   goalOrbPercent: document.querySelector('#goalOrbPercent'),
-  goalEditToggle: document.querySelector('#goalEditToggle'),
-  goalEditor: document.querySelector('#goalEditor'),
-  goalQuickInput: document.querySelector('#goalQuickInput'),
-  saveGoalQuick: document.querySelector('#saveGoalQuick'),
   quickAdd: document.querySelector('#quickAdd'),
   quickDateHint: document.querySelector('#quickDateHint'),
   advancedToggle: document.querySelector('#advancedToggle'),
@@ -82,7 +91,6 @@ const elements = {
 elements.entryDate.value = state.selectedDate;
 elements.unitPriceInput.value = state.unitPrice;
 elements.goalInput.value = state.goal;
-elements.goalQuickInput.value = state.goal;
 elements.syncEndpointInput.value = state.syncConfig?.endpoint || '';
 elements.entryForm.classList.add('hidden');
 
@@ -147,21 +155,6 @@ elements.settingsToggle.addEventListener('click', () => {
   elements.settingsPanel.classList.toggle('hidden', !isOpening);
   if (isOpening) {
     elements.settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-});
-
-elements.goalEditToggle.addEventListener('click', () => {
-  const isOpening = elements.goalEditor.classList.contains('hidden');
-  elements.goalEditor.classList.toggle('hidden', !isOpening);
-  if (isOpening) {
-    elements.goalQuickInput.value = state.goal;
-    elements.goalQuickInput.focus();
-  }
-});
-
-elements.saveGoalQuick.addEventListener('click', () => {
-  if (saveGoal(elements.goalQuickInput.value)) {
-    elements.goalEditor.classList.add('hidden');
   }
 });
 
@@ -265,7 +258,6 @@ function render() {
   elements.selectedDateLabel.textContent = formatDateLabel(state.selectedDate);
   elements.entryDate.value = state.selectedDate;
   elements.goalInput.value = state.goal;
-  elements.goalQuickInput.value = state.goal;
 
   elements.quickAdd.querySelector('strong').textContent = `记入 ${formatCurrency(state.unitPrice)}`;
   elements.quickDateHint.textContent =
@@ -276,7 +268,7 @@ function render() {
     elements.bankSubtitle.textContent = `已经超过目标 ${formatCurrency(summary.totalIncome - state.goal)}`;
   } else {
     elements.bankTitle.textContent = `还差 ${formatCurrency(progress.remaining)}`;
-    elements.bankSubtitle.textContent = '每成交一单，水位就涨一点。';
+    elements.bankSubtitle.textContent = getDailyQuote();
   }
 
   renderDotChart(elements.dailyChart, dailyChart, '日', 'day');
@@ -509,6 +501,12 @@ function renderRecords(groups) {
       `,
     )
     .join('');
+}
+
+function getDailyQuote(date = new Date()) {
+  const startOfYear = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date - startOfYear) / 86400000);
+  return incomeQuotes[dayOfYear % incomeQuotes.length];
 }
 
 function updatePreview() {

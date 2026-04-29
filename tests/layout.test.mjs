@@ -20,19 +20,37 @@ test('record form exposes selected date controls for backfilling income', async 
   assert.match(html, /点日历圆点可切换日期/);
 });
 
-test('goal panel exposes a quick monthly goal editor', async () => {
+test('goal panel keeps monthly goal editing out of the homepage card', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
-  assert.match(html, /id="goalEditToggle"/);
-  assert.match(html, /id="goalQuickInput"/);
-  assert.match(html, /id="saveGoalQuick"/);
+  assert.doesNotMatch(html, /id="goalEditToggle"/);
+  assert.doesNotMatch(html, /id="goalQuickInput"/);
+  assert.doesNotMatch(html, /id="saveGoalQuick"/);
+  assert.match(html, /id="goalInput"/);
 });
 
-test('quick goal editor uses a full-width input layout', async () => {
+test('homepage quote reflects income as trust and momentum', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /又一份信任，到账了。/);
+  assert.match(app, /incomeQuotes\s*=\s*\[/);
+  assert.match(app, /你值得。这一切都是你应得的。/);
+  assert.doesNotMatch(html, /今日语录/);
+  assert.doesNotMatch(app, /今日语录/);
+});
+
+test('homepage has a top belief banner for the health service mission', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+  assert.match(html, /class="belief-banner"/);
+  assert.match(html, /你记下的每一笔，都是一个真实的人，把改善健康的希望托付给了你/);
+});
+
+test('quick goal editor styles are removed with the homepage editor', async () => {
   const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
 
-  assert.match(css, /\.goal-editor\s*{[^}]*flex:\s*0 0 100%/s);
-  assert.match(css, /\.goal-editor\s*{[^}]*grid-template-columns:\s*1fr/s);
+  assert.doesNotMatch(css, /\.goal-editor\b/);
 });
 
 test('settings panel opens near the top of the page', async () => {

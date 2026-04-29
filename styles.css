@@ -36,6 +36,23 @@ input {
   padding: max(28px, calc(env(safe-area-inset-top) + 18px)) 16px 32px;
 }
 
+.belief-banner {
+  margin-bottom: 12px;
+  padding: 13px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08)),
+    linear-gradient(90deg, rgba(255, 77, 166, 0.22), rgba(37, 231, 213, 0.16));
+  box-shadow: 0 16px 34px rgba(78, 25, 104, 0.16);
+  color: rgba(255, 253, 248, 0.92);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.55;
+  text-wrap: balance;
+  backdrop-filter: blur(18px);
+}
+
 .hero,
 .goal-panel,
 .chart-panel,
@@ -231,18 +248,6 @@ h2 {
 .bank-copy strong {
   font-size: 20px;
   color: #fffdf8;
-}
-
-.goal-editor {
-  flex: 0 0 100%;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.goal-editor .secondary-action {
-  width: 100%;
 }
 
 .chart-panel,
