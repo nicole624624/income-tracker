@@ -32,6 +32,18 @@ test('monthly records expose an edit action for correcting mistakes', async () =
   assert.match(app, /确定删除这笔记录吗/);
 });
 
+test('quick add has touch feedback and double tap protection', async () => {
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
+
+  assert.match(app, /quickAddCooldownUntil/);
+  assert.match(app, /QUICK_ADD_COOLDOWN_MS/);
+  assert.match(app, /is-just-added/);
+  assert.match(css, /\.quick-add\.is-just-added/);
+  assert.match(css, /@keyframes\s+quickPulse/);
+  assert.match(css, /touch-action:\s*manipulation/);
+});
+
 test('goal panel keeps monthly goal editing out of the homepage card', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 

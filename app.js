@@ -47,6 +47,10 @@ const incomeQuotes = [
   '你值得。这一切都是你应得的。',
 ];
 
+const QUICK_ADD_COOLDOWN_MS = 900;
+let quickAddCooldownUntil = 0;
+let quickAddFeedbackTimer = null;
+
 const elements = {
   monthIncome: document.querySelector('#monthIncome'),
   goalText: document.querySelector('#goalText'),
@@ -100,6 +104,14 @@ elements.syncEndpointInput.value = state.syncConfig?.endpoint || '';
 elements.entryForm.classList.add('hidden');
 
 elements.quickAdd.addEventListener('click', () => {
+  const now = Date.now();
+  if (now < quickAddCooldownUntil) {
+    showMessage('已经记上了，别急');
+    return;
+  }
+
+  quickAddCooldownUntil = now + QUICK_ADD_COOLDOWN_MS;
+  showQuickAddFeedback();
   addEntry(
     createSaleEntry({
       date: state.selectedDate,
@@ -250,6 +262,19 @@ function addEntry(entry, text) {
   showMessage(text);
   render();
   syncPendingRecords();
+}
+
+function showQuickAddFeedback() {
+  elements.quickAdd.classList.remove('is-just-added');
+  void elements.quickAdd.offsetWidth;
+  elements.quickAdd.classList.add('is-just-added');
+  elements.quickAdd.querySelector('span').textContent = '已记入';
+
+  clearTimeout(quickAddFeedbackTimer);
+  quickAddFeedbackTimer = window.setTimeout(() => {
+    elements.quickAdd.classList.remove('is-just-added');
+    elements.quickAdd.querySelector('span').textContent = '+1 单';
+  }, QUICK_ADD_COOLDOWN_MS);
 }
 
 function saveEditedEntry() {

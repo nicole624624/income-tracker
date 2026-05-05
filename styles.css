@@ -30,6 +30,11 @@ input {
   font: inherit;
 }
 
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .app-shell {
   width: min(100%, 520px);
   margin: 0 auto;
@@ -480,12 +485,20 @@ h2 {
   gap: 4px;
   min-height: 104px;
   place-items: center;
-  transition: transform 150ms ease, filter 150ms ease;
+  will-change: transform, filter;
+  transition: transform 150ms ease, filter 150ms ease, box-shadow 150ms ease;
 }
 
 .quick-add:active {
-  transform: scale(0.985);
-  filter: brightness(1.06);
+  transform: translateY(3px) scale(0.965);
+  filter: brightness(1.12) saturate(1.12);
+  box-shadow: 0 8px 18px rgba(124, 30, 92, 0.18);
+}
+
+.quick-add.is-just-added {
+  animation: quickPulse 560ms ease;
+  filter: brightness(1.16) saturate(1.18);
+  box-shadow: 0 0 0 7px rgba(255, 253, 248, 0.18), 0 20px 42px rgba(37, 231, 213, 0.26);
 }
 
 .quick-add span {
@@ -495,6 +508,20 @@ h2 {
 
 .quick-add strong {
   font-size: 15px;
+}
+
+@keyframes quickPulse {
+  0% {
+    transform: scale(0.96);
+  }
+
+  46% {
+    transform: scale(1.035);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .entry-form {
