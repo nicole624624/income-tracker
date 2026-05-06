@@ -44,6 +44,14 @@ test('quick add has touch feedback and double tap protection', async () => {
   assert.match(css, /touch-action:\s*manipulation/);
 });
 
+test('yearly monthly chart shows full RMB amounts instead of compact labels', async () => {
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /type === 'month' && item\.totalIncome > 0 \? formatCurrency\(item\.totalIncome\)/);
+  assert.doesNotMatch(app, /formatCompactCurrency/);
+  assert.doesNotMatch(app, /roundForLabel/);
+});
+
 test('goal panel keeps monthly goal editing out of the homepage card', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 

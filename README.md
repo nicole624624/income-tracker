@@ -57,7 +57,8 @@
 - `042f71a Add rotating income quotes`：增加顶部信念提醒、每日轮换语录，取消首页设置目标入口。
 - `8fcdce5 Allow correcting income entries`：增加本月记录修改入口，录错金额后可以回到表单修正。
 - `cd223d2 Add delete option for edited entries`：修改某一笔时增加“删除这笔”，用于移除多记的记录。
-- 当前改动：一键记账增加回弹、发光和“已记入”反馈，并拦住短时间内的重复点击。
+- `f6205f2 Add quick add feedback guard`：一键记账增加回弹、发光和“已记入”反馈，并拦住短时间内的重复点击。
+- 当前改动：今年每月模块改为显示完整金额，不再显示 `k` 或 `万` 的简写。
 
 ## 下次可优化方向
 

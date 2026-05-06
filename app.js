@@ -474,7 +474,7 @@ function renderDotChart(container, items, suffix, type) {
             <div class="dot-fill"></div>
             <span>${item.label}</span>
           </div>
-          <div class="dot-money">${type === 'month' && item.totalIncome > 0 ? formatCompactCurrency(item.totalIncome) : ''}</div>
+          <div class="dot-money">${type === 'month' && item.totalIncome > 0 ? formatCurrency(item.totalIncome) : ''}</div>
           <div class="dot-meta">${type === 'month' && item.entryCount > 0 ? `${item.entryCount}笔` : ''}</div>
         </${tag}>
       `;
@@ -531,21 +531,6 @@ function getDopaminePalette(label) {
     .split('')
     .reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return palettes[index % palettes.length];
-}
-
-function formatCompactCurrency(amount) {
-  const number = Number(amount) || 0;
-  if (number >= 10000) {
-    return `¥${roundForLabel(number / 10000)}万`;
-  }
-  if (number >= 1000) {
-    return `¥${roundForLabel(number / 1000)}k`;
-  }
-  return formatCurrency(number);
-}
-
-function roundForLabel(value) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function formatDateLabel(date) {

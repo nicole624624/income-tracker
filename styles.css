@@ -452,7 +452,7 @@ h2 {
 }
 
 .month-item {
-  grid-template-rows: auto 14px 13px;
+  grid-template-rows: auto minmax(14px, auto) 13px;
 }
 
 .month-item .income-dot span {
@@ -462,6 +462,12 @@ h2 {
 .month-item .dot-money,
 .month-item .dot-meta {
   font-size: 11px;
+}
+
+.month-item .dot-money {
+  line-height: 1.05;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .quick-add,
