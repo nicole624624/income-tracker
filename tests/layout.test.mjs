@@ -12,6 +12,32 @@ test('secondary panels live in the horizontal feature carousel', async () => {
   assert.match(html, /<section class="records-panel carousel-card" aria-label="进账记录">/);
 });
 
+test('homepage shows a loading state before local records are read', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /<body class="app-loading">/);
+  assert.match(html, /正在读取本机账本/);
+  assert.match(app, /document\.body\.classList\.remove\('app-loading'\)/);
+});
+
+test('entries have a local backup mirror for recovery', async () => {
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /entriesBackup: 'income-tracker\.entriesBackup'/);
+  assert.match(app, /readEntriesWithBackup/);
+  assert.match(app, /persistEntries/);
+});
+
+test('storage write failures are guarded so the app can still open', async () => {
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /function safeSetItem/);
+  assert.match(app, /function safeRemoveItem/);
+  assert.match(app, /safeSetItem\(storageKeys\.entries/);
+  assert.match(app, /safeRemoveItem\(storageKeys\.syncConfig\)/);
+});
+
 test('record form exposes selected date controls for backfilling income', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 

@@ -18,6 +18,7 @@ import {
 
 const storageKeys = {
   entries: 'income-tracker.entries',
+  entriesBackup: 'income-tracker.entriesBackup',
   unitPrice: 'income-tracker.unitPrice',
   goal: 'income-tracker.goal',
   syncQueue: 'income-tracker.syncQueue',
@@ -25,7 +26,7 @@ const storageKeys = {
 };
 
 const state = {
-  entries: readJSON(storageKeys.entries, []),
+  entries: readEntriesWithBackup(),
   unitPrice: readNumber(storageKeys.unitPrice, DEFAULT_UNIT_PRICE),
   goal: readNumber(storageKeys.goal, DEFAULT_MONTH_GOAL),
   syncQueue: readJSON(storageKeys.syncQueue, []),
@@ -185,7 +186,7 @@ elements.saveSettings.addEventListener('click', () => {
   }
 
   state.unitPrice = nextUnitPrice;
-  localStorage.setItem(storageKeys.unitPrice, String(state.unitPrice));
+  safeSetItem(storageKeys.unitPrice, String(state.unitPrice));
   saveGoal(nextGoal, false);
   showMessage('设置已保存');
   updatePreview();
@@ -197,7 +198,7 @@ elements.saveSyncConfig.addEventListener('click', () => {
 
   if (!endpoint) {
     state.syncConfig = null;
-    localStorage.removeItem(storageKeys.syncConfig);
+    safeRemoveItem(storageKeys.syncConfig);
     showMessage('同步地址已清空');
     render();
     return;
@@ -214,7 +215,7 @@ elements.saveSyncConfig.addEventListener('click', () => {
   }
 
   state.syncConfig = { endpoint };
-  localStorage.setItem(storageKeys.syncConfig, JSON.stringify(state.syncConfig));
+  safeSetItem(storageKeys.syncConfig, JSON.stringify(state.syncConfig));
   showMessage('同步地址已保存');
   render();
   syncPendingRecords();
@@ -258,7 +259,7 @@ elements.recordsList.addEventListener('click', (event) => {
 function addEntry(entry, text) {
   state.entries = [entry, ...state.entries];
   queueForSync(entry);
-  localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
+  persistEntries();
   showMessage(text);
   render();
   syncPendingRecords();
@@ -294,7 +295,7 @@ function saveEditedEntry() {
 
   state.entries = state.entries.map((entry) => (entry.id === updatedEntry.id ? updatedEntry : entry));
   queueForSync(updatedEntry);
-  localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
+  persistEntries();
   state.editingId = null;
   resetEntryForm();
   showMessage('这笔记录已修改');
@@ -315,8 +316,8 @@ function deleteEditingEntry() {
   const deletedId = state.editingId;
   state.entries = state.entries.filter((entry) => entry.id !== deletedId);
   state.syncQueue = state.syncQueue.filter((item) => item.id !== deletedId);
-  localStorage.setItem(storageKeys.entries, JSON.stringify(state.entries));
-  localStorage.setItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
+  persistEntries();
+  safeSetItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
   state.editingId = null;
   resetEntryForm();
   showMessage('这笔记录已删除');
@@ -324,6 +325,7 @@ function deleteEditingEntry() {
 }
 
 function render() {
+  document.body.classList.remove('app-loading');
   const monthKey = currentMonthKey();
   const yearKey = monthKey.slice(0, 4);
   const summary = getMonthSummary(state.entries, monthKey);
@@ -372,7 +374,7 @@ function queueForSync(entry) {
     queuedAt: new Date().toISOString(),
   };
   state.syncQueue = [queued, ...state.syncQueue.filter((item) => item.id !== entry.id)];
-  localStorage.setItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
+  safeSetItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
 }
 
 function renderSyncStatus() {
@@ -456,7 +458,7 @@ async function syncPendingRecords() {
 
 function updateQueueItem(id, patch) {
   state.syncQueue = state.syncQueue.map((item) => (item.id === id ? { ...item, ...patch } : item));
-  localStorage.setItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
+  safeSetItem(storageKeys.syncQueue, JSON.stringify(state.syncQueue));
 }
 
 function renderDotChart(container, items, suffix, type) {
@@ -511,7 +513,7 @@ function saveGoal(value, shouldRender = true) {
   }
 
   state.goal = nextGoal;
-  localStorage.setItem(storageKeys.goal, String(state.goal));
+  safeSetItem(storageKeys.goal, String(state.goal));
   showMessage('月目标已保存');
   if (shouldRender) {
     render();
@@ -664,9 +666,70 @@ function readJSON(key, fallback) {
   }
 }
 
+function readEntriesWithBackup() {
+  const primary = readJSON(storageKeys.entries, null);
+  if (Array.isArray(primary)) {
+    if (primary.length > 0) {
+      mirrorEntriesBackup(primary);
+    }
+    return primary;
+  }
+
+  const backup = readJSON(storageKeys.entriesBackup, null);
+  const backupEntries = Array.isArray(backup) ? backup : backup?.entries;
+  if (Array.isArray(backupEntries)) {
+    safeSetItem(storageKeys.entries, JSON.stringify(backupEntries));
+    return backupEntries;
+  }
+
+  return [];
+}
+
+function persistEntries() {
+  safeSetItem(storageKeys.entries, JSON.stringify(state.entries));
+  mirrorEntriesBackup(state.entries);
+}
+
+function mirrorEntriesBackup(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return;
+  }
+
+  safeSetItem(
+    storageKeys.entriesBackup,
+    JSON.stringify({
+      savedAt: new Date().toISOString(),
+      origin: window.location.origin,
+      entries,
+    }),
+  );
+}
+
 function readNumber(key, fallback) {
-  const value = Number(localStorage.getItem(key));
-  return Number.isFinite(value) && value > 0 ? value : fallback;
+  try {
+    const value = Number(localStorage.getItem(key));
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeRemoveItem(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function escapeHTML(value) {

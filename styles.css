@@ -25,6 +25,26 @@ body {
     linear-gradient(165deg, #7b5cff 0%, #b85de6 34%, #ef4fb1 68%, #33cdd7 100%);
 }
 
+.loading-banner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: none;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding: max(11px, env(safe-area-inset-top)) 16px 11px;
+  background: rgba(43, 22, 74, 0.86);
+  color: rgba(255, 253, 248, 0.94);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  backdrop-filter: blur(18px);
+}
+
+.app-loading .loading-banner {
+  display: block;
+}
+
 button,
 input {
   font: inherit;
